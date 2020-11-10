@@ -29,9 +29,8 @@ from codecs import open
 from markdown.extensions import Extension
 from markdown.preprocessors import Preprocessor
 
-INC_SYNTAX = re.compile(r'\{!\s*(.+?)\s*!\}')
+INC_SYNTAX = re.compile(r'\{!\s*(.+?)(\s*:class=\"(.+)\")*\s*!\}')
 HEADING_SYNTAX = re.compile( '^#+' )
-
 
 class MarkdownInclude(Extension):
     def __init__(self, configs={}):
@@ -49,7 +48,8 @@ class MarkdownInclude(Extension):
                                 'to find an included file it will throw an '\
                                 'exception which the user can catch. If false '\
                                 '(default), a warning will be printed and '\
-                                'Markdown will continue parsing the file.']
+                                'Markdown will continue parsing the file.'],
+            'default_attr_class': ['', 'Class attribute to add']
         }
         for key, value in configs.items():
             self.setConfig(key, value)
@@ -74,6 +74,7 @@ class IncludePreprocessor(Preprocessor):
         self.inheritHeadingDepth = config['inheritHeadingDepth']
         self.headingOffset = config['headingOffset']
         self.throwException = config['throwException']
+        self.default_attr_class = config['default_attr_class']
 
     def run(self, lines):
         done = False
@@ -118,7 +119,14 @@ class IncludePreprocessor(Preprocessor):
                             text[i] = text[i].rstrip('\r\n')
                             
                     text[0] = line_split[0] + text[0]
-                    text[-1] = text[-1] + line_split[2]
+                    text[-1] = text[-1] + line_split[4]
+                    attr = ''
+                    if m.group(3):
+                        attr = ' class="' + m.group(3) + '"'
+                    elif not self.default_attr_class == '':
+                        attr = ' class="' + self.default_attr_class + '"'
+                    text.insert(0, '<div markdown="1"'+ attr +'>')
+                    text.append('</div>')
                     lines = lines[:loc] + text + lines[loc+1:]
                     break
                     
